@@ -1,9 +1,5 @@
 #!/usr/bin/python
-################################################################################
-#
-# Node to wrap the OccupancyGrid2d class.
-#
-################################################################################
+#adapted from occupancy grid code provided by EECS 106A course staff 
 
 from occupancy_grid_2d import OccupancyGrid2d
 

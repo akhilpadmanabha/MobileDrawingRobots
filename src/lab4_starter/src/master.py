@@ -12,20 +12,18 @@ import time
 import random 
 import coloring
 
-#robot_num = 2
-#robot_num = rospy.get_param("~robot_number")
 r_position = []
 r_status = []
 r_times = []
 
-#robot_trajectories = []
-
+#Subscriber for robot status 
 def callback_robot_status(message, n):
 	r_status[n] = message.data
 
 def get_robot_status(name, n):
 	rospy.Subscriber("/%s/status" % (name), String, callback_robot_status, n, queue_size=1) 
 
+#Subscriber for robot position
 def callback_robot_position(message, n):
 	r0x = message.position[0]
 	r0y = message.position[1]
@@ -34,6 +32,7 @@ def callback_robot_position(message, n):
 def get_robot_position(name, n):
 	rospy.Subscriber("/%s/position" % (name), msg_type_position, callback_robot_position, n) 
 
+#optimization functions for choosing trajectories 
 def distance(point1, point2):
 	x1 = point1[0]
 	y1 = point1[1]
@@ -42,7 +41,6 @@ def distance(point1, point2):
 	return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
 def optimization(robottrajectories, n): 
-	#next_trajectory = robot0trajectories[0] No optimization approach
 	#optimization using distance from current position
 	mindist = 1000000
 	minindex = 0
@@ -70,7 +68,8 @@ def optimization(robottrajectories, n):
 	robottrajectories.pop(minindex)
 	return next_trajectory
 
-def send_robot_trajectory(name,n):
+#send robot trajectory functions
+def send_robot_trajectory(name,n): #for edges case 
 	rtrajectory_publisher = rospy.Publisher('/%s/trajectory' % (name), msg_type_trajectory, queue_size=10)
 	if robot_trajectories != [] and r_status[n] == 'yes' and (rospy.get_rostime() - r_times[n]).to_sec() > 3:
 		rtrajectory = msg_type_trajectory()
@@ -85,7 +84,7 @@ def send_robot_trajectory(name,n):
 		r_times[n] = rospy.get_rostime()
 		rtrajectory_publisher.publish(rtrajectory)
 
-def send_robot_trajectory_logo(name,n):
+def send_robot_trajectory_logo(name,n): #for fill case 
 	rtrajectory_publisher = rospy.Publisher('/%s/trajectory' % (name), msg_type_trajectory, queue_size=10)
 	if robot_trajectories[n] != [] and r_status[n] == 'yes':
 		rtrajectory = msg_type_trajectory()
@@ -100,12 +99,7 @@ def send_robot_trajectory_logo(name,n):
 	else:
 		print(str(name)+'done')
 
-def generate_bounds(blurred, sigma):
-	#adapted from https://www.pyimagesearch.com/2015/04/06/zero-parameter-automatic-canny-edge-detection-with-python-and-opencv/
-	med = np.median(blurred)
-	lower = int(max(0, (1.0 - sigma) * med))
-	upper = int(min(255, (1.0 + sigma) * med))
-	return [lower, upper]
+
 
 
 def launch_file(robot_num):
@@ -223,9 +217,16 @@ def scale_trajectories(trajectories):
 		new_trajectories.append(new_trajectory)
 	return new_trajectories 
 
+#CV functions
+def generate_bounds(blurred, sigma):
+	#adapted from https://www.pyimagesearch.com/2015/04/06/zero-parameter-automatic-canny-edge-detection-with-python-and-opencv/
+	med = np.median(blurred)
+	lower = int(max(0, (1.0 - sigma) * med))
+	upper = int(min(255, (1.0 + sigma) * med))
+	return [lower, upper]
 
-def comp_vision(imagepath): 
-	#CV Stuff
+
+def comp_vision(imagepath): #CV for edges case
 	img_path = imagepath
 	color_img = cv.imread(img_path)
 	img = cv.imread(img_path, 0) #will only work if you are in the directory where it is located
@@ -248,7 +249,6 @@ def comp_vision(imagepath):
 			exit()
 		cv.destroyAllWindows()
 
-	
 	_, contours, hierarchy = cv.findContours(edges, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
 	trajectories = []
@@ -261,47 +261,25 @@ def comp_vision(imagepath):
 	print(trajectories)
 	return trajectories 
 
-def comp_vision_logo(robot_num, imagepath):
-	#Akhil notes: 
-	#this needs to rescale the image to 100 by 100 before doing clustering
-	#use this: 	img = cv.resize(img, (100, 100))
-	#you don't need to scale trajectories below (you can use the scaling trajectories function if easier)
-	#should take in image path and robot_num from user input passed from main below
-
+def comp_vision_logo(robot_num, imagepath): #CV for fill case 
 	IMG_DIR = coloring.IMG_DIR
 	test_img_color = coloring.read_image(IMG_DIR + '/%s' % (imagepath))
 	test_img_color = cv.resize(test_img_color, (200, 200))
 	coloring.test_cluster(test_img_color,6,robot_num)    # 6-2 = 4 different clusters will be given
 	color_traj = coloring.c_trajectories
-	#color_traj = np.array(color_traj)
-	#print(color_traj[0])
-	#color_traj = color_traj / 15.0
 	color_traj = scale_trajectories(color_traj)
-	#print(color_traj)
-	#color_traj = color_traj.tolist()
-	#print(color_traj)
 	return color_traj 
 
 if __name__ == '__main__':
-	
-	#robot_trajectories = scale_trajectories(comp_vision())
-	#print(robot_trajectories)
-	#print(len(robot_trajectories))	
-	#robot_trajectories = [[[4,4], [0,4],[3.5,1], [2, 6], [0.5, 1], [4,4]], [[9,9], [5,9], [8.5,6], [7, 11], [5.5,6], [9,9]]]
-	#robot_trajectories = [[[0,1], [0,2],[0,3]], [[3, 0], [3, 1], [3,2]]]
-	#robot_trajectories = [[[5,3], [4,2]],[[1,3], [2,4]], [[4,4], [3,5]], [[3,1], [2,2]]]  
-	#robot_trajectories = [[[2, 2], [3, 1], [4,2]]]
-	#robot_trajectories = [[[1,5]], [[2,3], [3,5], [4,2]], [[1, 2], [3, 3]]]#this is the trajectory produced by the CV
-	#robot_trajectories = [[[1, 1]], [[3,5], [5,1], [1,3], [5,3], [1,1]]]
-
-	#UNCOMMENT FOR USER INPUT
-	#imagepath = raw_input('Enter image path: ')
+	#user input 
+	imagepath = raw_input('Enter image path: ')
 	robot_num = int(raw_input('Enter the number of robots: '))
 	mode = int(raw_input('Enter mode (1 for edges, 2 for logo with fill): '))
 
-	imagepath = '/chrome.jpg'
-	mode = 2
+	#imagepath = '/chrome.jpg'
+	#mode = 2
 
+	#generating trajectories based on the mode selected 
 	if mode == 1: 
 		robot_trajectories = scale_trajectories(comp_vision(imagepath))
 		print('Number of Trajectories: ' +  str(len(robot_trajectories)))
@@ -309,17 +287,15 @@ if __name__ == '__main__':
 		robot_trajectories = comp_vision_logo(robot_num, imagepath)
 		print(len(robot_trajectories))
 
-
+	#launches launch file and nodes 
 	launch_file(robot_num) #if this is bugging out and saying roscore is running already use command "killall -9 rosmaster" in terminal
 	start_drawing_node(robot_num, mode)
 	start_robot_node(robot_num, mode)
 
-	for x in range(robot_num):
-		if mode ==2:
-			spawn_robot()
+	for x in range(robot_num): #spawns robots based on the number of robots inputted by user 
+		spawn_robot()
 		
-
-	rviz_node()
+	rviz_node() #starts rviz 
 
 	rospy.init_node('master', anonymous=True)
 

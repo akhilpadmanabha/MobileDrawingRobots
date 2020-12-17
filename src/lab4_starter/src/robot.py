@@ -144,21 +144,6 @@ class robot:
 			else: 
 				linear_vel = 0
 			elapsed_time = (self.current_time - self.start_time).to_sec()
-			'''
-			if self.penstatus == 'yes' and elapsed_time > 20:
-				if self.robotstate == 'spin':
-					linear_vel = 0
-					thetadot = 0
-					if elapsed_time > 25:
-						self.start_time = rospy.get_rostime()
-						self.robotstate = 'notspin'
-				else:
-					linear_vel = 0
-					thetadot = 0
-					self.e_curr = 0 
-					self.robotstate = 'spin'
-					#self.trajectory = self.trajectory[1:]
-			'''
 		
 			speed.linear.x = linear_vel
 			speed.angular.z = thetadot
