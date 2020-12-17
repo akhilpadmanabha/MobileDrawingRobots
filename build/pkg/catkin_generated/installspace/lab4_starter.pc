@@ -1,0 +1,8 @@
+prefix=/home/akhil/ros_workspaces/project/install
+
+Name: lab4_starter
+Description: Description of lab4_starter
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib 
+Requires: roscpp rospy std_msgs message_runtime
